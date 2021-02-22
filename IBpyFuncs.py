@@ -41,3 +41,5 @@ class IBapi(EWrapper, EClient):
 		df['Time'] = pandas.to_datetime(df['Time']).dt.strftime("%d/%m/%Y %H:%M:%S")
 		df = df.set_index('Time')
 		df.to_csv(f'C:\\Temp\\{filename}.csv', header=None)  
+
+	

@@ -34,10 +34,13 @@ def portfolio_apr(ret):
     return np.prod(1+ret)**(252/len(ret))-1
 
 
-factor = 0.5
+factor = 1
 
-df_x = prepare_data_coint_test("C:\\Temp\\EWA.csv")
-df_y = prepare_data_coint_test("C:\\Temp\\EWC.csv")
+fileOne = "C:\\Users\\Ben Roberts\\Documents\\Quark\\testdata\\EWA.csv"
+fileTwo = "C:\\Users\\Ben Roberts\\Documents\\Quark\\testdata\\EWC.csv"
+
+df_x = prepare_data_coint_test(fileOne)
+df_y = prepare_data_coint_test(fileTwo)
 s1 = define_valid_series(df_x, df_y)
 print('series length ' + str(len(s1)))
 

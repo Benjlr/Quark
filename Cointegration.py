@@ -83,8 +83,6 @@ def test_stat(res):
 
 
 def define_valid_series(df_x, df_y):
-    print(df_x)
-    print(df_y)
     s1 = pd.merge(df_x['Close'], df_y['Close'], how='inner', on=['Date'])
     #df = df[df['x'].notna()]
     #df = df[df['y'].notna()]
