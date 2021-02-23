@@ -36,11 +36,11 @@ def portfolio_apr(ret):
 
 factor = 1
 
-fileOne = "C:\\Users\\Ben Roberts\\Documents\\Quark\\testdata\\EWA.csv"
-fileTwo = "C:\\Users\\Ben Roberts\\Documents\\Quark\\testdata\\EWC.csv"
+XXfile = "testdata\\EWA.csv"
+YYfile = "testdata\\EWC.csv"
 
-df_x = prepare_data_coint_test(fileOne)
-df_y = prepare_data_coint_test(fileTwo)
+df_x = prepare_data_coint_test(XXfile)
+df_y = prepare_data_coint_test(YYfile)
 s1 = define_valid_series(df_x, df_y)
 print('series length ' + str(len(s1)))
 
