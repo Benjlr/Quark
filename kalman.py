@@ -20,7 +20,7 @@ class Kalman:
 
     def __init__(self):        
         self.R = np.zeros((2,2))
-        self.delta=0.000001
+        self.delta=0.0001
         self.beta=np.ndarray(shape=[2,0])
         self.Vw=self.delta/(1-self.delta)*np.eye(2)
         self.Ve=0.001
