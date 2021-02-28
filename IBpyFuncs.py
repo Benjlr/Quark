@@ -10,7 +10,7 @@ import time
 class IBapi(EWrapper, EClient):	
 	def __init__(self):
 		EClient.__init__(self, self)
-		self.connect('127.0.0.1', 7497, 123)
+		self.connect('127.0.0.1', 7497, 1)
 		api_thread = threading.Thread(target=self.run_loop, daemon=True)
 		api_thread.start()
 		self.data = [] 
@@ -24,13 +24,17 @@ class IBapi(EWrapper, EClient):
 		self.data.append([bar.date, bar.open, bar.high, bar.low, bar.close])
 
 
-	def createStockContract(self, window_size, end_date, bar_size, ticker, security='STK', exch='SMART', msr ='MIDPOINT' ):
+	def createStockContract(self, window_size, end_date, bar_size, ticker, 
+		currency = 'USD',
+		security='STK', 
+		exch='SMART',
+		msr ='MIDPOINT' ):
 		self.data = []
 		eurusd_contract = Contract()
 		eurusd_contract.symbol = ticker
 		eurusd_contract.secType = security
 		eurusd_contract.exchange = exch
-		eurusd_contract.currency = 'USD'
+		eurusd_contract.currency = currency
 		#'2021-02-16 16:05:00'
 		self.reqHistoricalData(1, eurusd_contract, end_date, window_size, bar_size, msr, 0, 1, False, [])
 		time.sleep(10)

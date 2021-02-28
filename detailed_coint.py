@@ -38,6 +38,8 @@ factor = 1
 
 XXfile = "testdata\\EWA.csv"
 YYfile = "testdata\\EWC.csv"
+#XXfile = "C:\\Temp\\EWA.csv"
+#YYfile = "C:\\Temp\\EWC.csv"
 
 df_x = prepare_data_coint_test(XXfile)
 df_y = prepare_data_coint_test(YYfile)
@@ -55,8 +57,8 @@ print(halflife)
 print('APR=%f Sharpe=%f' % (portfolio_apr(returns), portfolio_sharpe(returns)))
 
 ### KALMAN
-x=s1['Close_x']
-y=s1['Close_y']
+x=s1['close_x']
+y=s1['close_y']
 
 x=np.array(ts.add_constant(x))[:, [1,0]] # Augment x with ones to  accomodate possible offset in the regression between y vs x.
 delta=0.0001 # delta=1 gives fastest change in beta, delta=0.000....1 allows no change (like traditional linear regression).
@@ -162,10 +164,10 @@ for t in s1.values:
     myKal.update_prediction(x_close= t[0], y_close= t[1])
 
 longsEntry=myKal.e < -np.sqrt(myKal.Q)* factor
-longsExit =myKal.e > 0
+longsExit =myKal.e > np.sqrt(myKal.Q)* factor
 
 shortsEntry=myKal.e > np.sqrt(myKal.Q)* factor
-shortsExit =myKal.e < 0
+shortsExit =myKal.e < -np.sqrt(myKal.Q)* factor
 
 numUnitsLong=np.zeros(longsEntry.shape)
 numUnitsLong[:]=np.nan
@@ -196,7 +198,7 @@ ret =np.nan_to_num(ret)
 pd.DataFrame((np.cumprod(1+ret)-1)).plot()
 
 print('Tester')
-print('APR=%f Sharpe=%f' %  (portfolio_sharpe(ret), portfolio_apr(ret)))
+print('APR=%f Sharpe=%f' %  (portfolio_apr(ret), portfolio_sharpe(ret)))
 
 
 plt.show()

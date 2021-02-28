@@ -1,122 +1,119 @@
 
+from helpers import MakeIntoDF, PrimeKalman, SaveIBDataToFile
+from Cointegration import define_valid_series
+from Trading.BuySell import BuySell
 import numpy as np
-import ib_insync
-from ib_insync.contract import Forex
+from ib_insync.contract import CFD, Forex, Stock
 from ib_insync.ib import IB
 import kalman
 from ib_insync import *
 
-
-
 class Trader:
-    myKal = kalman.Kalman() 
-    #contractEWA = CFD('EWA', 'SMART', 'USD')
-    #contractEWC = CFD('EWC', 'SMART', 'USD')
-    contractEWA = Forex('CADUSD')
-    contractEWC = Forex('AUDUSD')
+    myKal = kalman.Kalman()
 
-    ewaBar = None
-    ewcBar = None
-    
-
-    def __init__(self):
-        
+    def __init__(self):        
         self.ib = IB()
         self.ib.connect('127.0.0.1', 7497, clientId=1)
+        self.broker = BuySell(self.ib,CFD('EWA', 'SMART', 'USD'), CFD('EWC', 'SMART', 'USD'))     
+        self.ewcBar = None
+        self.ewaBar = None   
         print(self.ib.isConnected())
-        print(self.ib.pnl())
         
+
+    def RetrieveHistoricalData(
+        self,
+        contract,
+        endDate = '', 
+        duration ='5 D',
+        barsize ='1 min',
+        showing = 'MIDPOINT',
+        ontheReg = False):
+        return self.ib.reqHistoricalData(
+        contract,
+        endDate,
+        duration,
+        barsize,
+        showing,
+        ontheReg,
+        formatDate=1)
+
+
+    def StartTrading(self):
         self.EWABars = self.ib.reqRealTimeBars(
-        self.contractEWA, 5, 'MIDPOINT', False)
+        Stock('EWA', 'SMART', 'USD'), 5, 'MIDPOINT', False)
         self.EWABars.updateEvent += self.onBarUpdateEWA
-        print(self.EWABars)
 
         self.EWCBars = self.ib.reqRealTimeBars(
-        self.contractEWC, 5, 'MIDPOINT', False)
+        Stock('EWC', 'SMART', 'USD'), 5, 'MIDPOINT', False)
         self.EWCBars.updateEvent += self.onBarUpdateEWC
-        print(self.EWCBars)
 
 
-
-    def onBarUpdateEWA(self, bars, hasNewBar):   
-        if self.CheckTime(bars.date.dt):
+    def onBarUpdateEWA(self, bars, hasNewBar):  
+        print(f'EWA {bars[len(bars)-1].time}')
+        if self.CheckTime(bars[len(bars)-1].time):
             self.ewaBar = bars[len(bars)-1]
             self.checkUpdate()
 
 
     def onBarUpdateEWC( self, bars, hasNewBar):
-        if self.CheckTime(bars.date.dt):
+        print(f'EWC {bars[len(bars)-1].time}')
+        if self.CheckTime(bars[len(bars)-1].time):
             self.ewcBar = bars[len(bars)-1]
-            self.checkUpdate()
+            self.checkUpdate()          
 
 
     def checkUpdate(self):
         if self.ewcBar != None and self.ewaBar != None:
             self.myKal.update_prediction(self.ewaBar.close, self.ewcBar.close)
+            self.myKal.showGraph()
+            
+            curr_iter =self.myKal.iter
+            print(f'Time: {self.ewaBar.time}, X: {self.ewaBar.close}, Y: {self.ewcBar.close}, {curr_iter}, BETA:{self.myKal.beta[:, curr_iter]}')
+
             #checkExits first
-            if self.myKal.e > 0 & self.long:
-                #ext
+            if (self.myKal.e[curr_iter] > 0 and self.broker.long):
+                self.broker.ExitLong(self.ewaBar.close,self.ewcBar.close)     
+                print('Exited Long!')          
 
-            if self.myKal.e < 0 & self.short:
-                #ext
+            if (self.myKal.e[curr_iter] < 0 and self.broker.short):
+                self.broker.ExitShort(self.ewaBar.close,self.ewcBar.close)
+                print('Exited Short!')          
 
-            if self.myKal.e < -np.sqrt(self.myKal.Q) & ~self.long:
-                self.LongEntry()
+            if (self.myKal.e[curr_iter] < -np.sqrt(self.myKal.Q[curr_iter]) 
+            and (not self.broker.long)):
+                self.broker.LongEntry(self.myKal.beta[:,self.myKal.iter][0],self.ewaBar.close,self.ewcBar.close)
+                print('Entered Long!')          
 
-            if self.myKal.e > np.sqrt(self.myKal.Q) & ~self.short:
-                self.ShortEntry()
+            if (self.myKal.e[curr_iter] > np.sqrt(self.myKal.Q[curr_iter]) 
+            and (not self.broker.short)):
+                self.broker.ShortEntry(self.myKal.beta[:,self.myKal.iter][0], self.ewaBar.close,self.ewcBar.close)
+                print('Entered Short!')
 
-            print(f'{self.ewaBar.close}, {self.ewcBar.close}')
-            print(self.myKal.beta[:, self.myKal.iter])
             self.ewaBar = None
             self.ewcBar = None
         
 
-    def CheckTime(datetime):
-        if (datetime.minute == 00 |
-            datetime.minute == 15 | 
-            datetime.minute == 30 |
-            datetime.minute == 45):
-                if datetime.second == 00:
-                    return True
+    def CheckTime(self, datetime):
+        if (datetime.second == 00):
+                #if datetime.second == 00:
+            return True
         return False
-
-    leverage = 100
-    long =False
-    short = False
-    tradeX = Trade()
-    tradeY = Trade()
-
-    def LongEntry(self):
-        XXShares = self.leverage 
-        YYShares = self.leverage * self.myKal.beta[:, self.myKal.iter][0]
-        self.ib.qualifyContracts(self.contractEWA)
-        self.ib.qualifyContracts(self.contractEWC)
-        orderBuy = MarketOrder('BUY', XXShares, self.ewaBar.close)
-        orderSell = MarketOrder('SELL', YYShares, self.ewcBar.close)
-        self.tradeX = self.ib.placeOrder(self.contractEWA, orderSell)
-        self.tradeY = self.ib.placeOrder(self.contractEWC, orderBuy)
-        self.long = True
-
-    def ShortEntry(self):
-        XXShares = self.leverage 
-        YYShares = self.leverage * self.myKal.beta[:, self.myKal.iter][0]
-        self.ib.qualifyContracts(self.contractEWA)
-        self.ib.qualifyContracts(self.contractEWC)
-        orderSell = MarketOrder('SELL', XXShares, self.ewaBar.close)
-        orderBuy = MarketOrder('BUY', YYShares, self.ewcBar.close)
-        self.tradeX = self.ib.placeOrder(self.contractEWA, orderSell)
-        self.tradeY = self.ib.placeOrder(self.contractEWC, orderBuy)
-        self.short = True
+        #if datetime.second == 00 or datetime.second % 20 == 0:
+        #            return True
+        #return False
 
 
-    def ExitLong(self):
-        orderBuy = MarketOrder('BUY', XXShares, self.ewaBar.close)
-        orderSell = MarketOrder('BUY', XXShares, self.ewaBar.close)
+    def PrimeKalman(self):
+        contractOne = Stock('EWA', exchange='SMART', currency='USD')
+        contractTwo = Stock('EWC', exchange='SMART', currency='USD')
+        self.ib.qualifyContracts(contractOne)
+        self.ib.qualifyContracts(contractTwo)
+        ewa = self.RetrieveHistoricalData(contractOne)
+        ewc = self.RetrieveHistoricalData(contractTwo)
+        df_x = MakeIntoDF(ewa)
+        df_y = MakeIntoDF(ewc)
+        PrimeKalman(self.myKal, define_valid_series(df_x,df_y))
+        self.myKal.showGraph()
 
+        
 
-    def ExitShort(self):
-
-
-gert = Trader()
-IB.sleep(1000)

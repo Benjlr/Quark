@@ -24,6 +24,7 @@ class Kalman:
         self.beta=np.ndarray(shape=[2,0])
         self.Vw=self.delta/(1-self.delta)*np.eye(2)
         self.Ve=0.001
+        
 
 
     def update_prediction(self, x_close, y_close):   
@@ -45,4 +46,11 @@ class Kalman:
         self.beta = np.append(self.beta, [[(self.beta[0, self.iter]+np.dot(K, self.e[self.iter])[0])], 
         [(self.beta[1, self.iter]+np.dot(K, self.e[self.iter])[1])]] , axis=1) 
         self.P=self.R-np.dot(np.outer(K, self.x[self.iter, :]), self.R) # Thanks to Matthias for chaning np.dot -> np.outer!
+        #self.showGraph()
 
+    def showGraph(self):
+        if self.iter > 30:
+            plt.plot(self.e[30:])
+            plt.plot(np.sqrt(self.Q[30:]))
+            plt.plot(-np.sqrt(self.Q[30:]))
+            plt.pause(0.01)

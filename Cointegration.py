@@ -6,16 +6,16 @@ mindate = '2018-06-01'
 maxdate = '2023-04-09'
 
 def prepare_data_coint_test(path):
-    df_x = pd.read_csv(path, sep=r'\s*,\s*', engine='python', header=None, index_col=['Date'], names=["Date", "Open", "High", "Low", "Close"], parse_dates=['Date'], dayfirst=True)
+    df_x = pd.read_csv(path, sep=r'\s*,\s*', engine='python', header=None, index_col=['date'], names=["date", "open", "high", "low", "close"], parse_dates=['date'], dayfirst=True)
     #df_x = df_x.loc[:mindate]
     #df_x = resample(df_x)
     return df_x
 
 def resample(data):
-    return data.resample('d').agg({'Open': 'first', 
-                               'High': 'max',
-                               'Low': 'min',
-                               'Close': 'last'},
+    return data.resample('d').agg({'open': 'first', 
+                               'high': 'max',
+                               'low': 'min',
+                               'close': 'last'},
                               # 'Volume': 'sum'}, 
                                loffset = pd.offsets.Day(1))
 
@@ -83,10 +83,10 @@ def test_stat(res):
 
 
 def define_valid_series(df_x, df_y):
-    s1 = pd.merge(df_x['Close'], df_y['Close'], how='inner', on=['Date'])
+    s1 = pd.merge(df_x['close'], df_y['close'], how='inner', on=['date'])
     #df = df[df['x'].notna()]
     #df = df[df['y'].notna()]
-    s1 = s1.sort_values(by='Date')
+    s1 = s1.sort_values(by='date')
     return s1
 
 def find_coints(pathOne,pathTwo):
