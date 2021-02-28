@@ -1,45 +1,20 @@
 
 from kalman import Kalman
-from Cointegration import define_valid_series, prepare_data_coint_test
+from Cointegration import backtest, construct_lagged_portfolio, define_valid_series, portfolio_apr, portfolio_halflife, portfolio_sharpe, prepare_data_coint_test
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import statsmodels.formula.api as sm
+
 import statsmodels.tsa.stattools as ts
 import statsmodels.tsa.vector_ar.vecm as vm
-
-def construct_lagged_portfolio(yport):
-    yport_lag = yport.shift()
-    delta_yport = yport - yport_lag 
-    df2=pd.concat([yport_lag, delta_yport], axis=1)
-    df2.columns=['ylag', 'deltaY']
-    return df2
-
-def portfolio_halflife(lagged_portfolio):
-    regress_results=sm.ols(formula="deltaY ~ ylag", data=lagged_portfolio).fit()
-    return np.round(-np.log(2)/regress_results.params['ylag']).astype(int)
-
-def backtest(s1, yport, halflife, johansen_vect):
-    numUnits = -(yport - yport.rolling(halflife).mean())/yport.rolling(halflife).std()
-    positions=pd.DataFrame(np.dot(numUnits.values, np.expand_dims(johansen_vect.evec[:, 0], axis=1).T)*s1.values) 
-
-    pnl=np.sum((positions.shift().values)*(s1.pct_change().values), axis=1) 
-    ret=pnl/np.sum(np.abs(positions.shift()), axis=1)
-    return ret
-
-def portfolio_sharpe(ret):
-    return np.sqrt(252)*np.mean(ret)/np.std(ret)
-
-def portfolio_apr(ret):
-    return np.prod(1+ret)**(252/len(ret))-1
 
 
 factor = 1
 
-XXfile = "testdata\\EWA.csv"
-YYfile = "testdata\\EWC.csv"
-#XXfile = "C:\\Temp\\EWA.csv"
-#YYfile = "C:\\Temp\\EWC.csv"
+#XXfile = "testdata\\EWA.csv"
+#YYfile = "testdata\\EWC.csv"
+XXfile = "C:\\Temp\\Data\\ETFS\\Arca\\AAAU.csv"
+YYfile = "C:\\Temp\\Data\\ETFS\\Arca\\AFIF.csv"
 
 df_x = prepare_data_coint_test(XXfile)
 df_y = prepare_data_coint_test(YYfile)
@@ -164,10 +139,10 @@ for t in s1.values:
     myKal.update_prediction(x_close= t[0], y_close= t[1])
 
 longsEntry=myKal.e < -np.sqrt(myKal.Q)* factor
-longsExit =myKal.e > np.sqrt(myKal.Q)* factor
+longsExit =myKal.e > -np.sqrt(myKal.Q)* factor
 
 shortsEntry=myKal.e > np.sqrt(myKal.Q)* factor
-shortsExit =myKal.e < -np.sqrt(myKal.Q)* factor
+shortsExit =myKal.e < np.sqrt(myKal.Q)* factor
 
 numUnitsLong=np.zeros(longsEntry.shape)
 numUnitsLong[:]=np.nan

@@ -1,12 +1,15 @@
 from numpy.core.fromnumeric import take
 import pandas as pd
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
+import numpy as np
+import pandas as pd
+import statsmodels.formula.api as sm
 
 mindate = '2018-06-01'
 maxdate = '2023-04-09'
 
 def prepare_data_coint_test(path):
-    df_x = pd.read_csv(path, sep=r'\s*,\s*', engine='python', header=None, index_col=['date'], names=["date", "open", "high", "low", "close"], parse_dates=['date'], dayfirst=True)
+    df_x = pd.read_csv(path, sep=r'\s*,\s*', engine='python', header=None, index_col=['date'], names=["date", "open", "high", "low", "close","volume"], parse_dates=['date'], dayfirst=True)
     #df_x = df_x.loc[:mindate]
     #df_x = resample(df_x)
     return df_x
@@ -94,6 +97,30 @@ def find_coints(pathOne,pathTwo):
     df_y = prepare_data_coint_test(pathTwo)
     return coint_johansen(define_valid_series(df_x,df_y),0,1)
 
+def construct_lagged_portfolio(yport):
+    yport_lag = yport.shift()
+    delta_yport = yport - yport_lag 
+    df2=pd.concat([yport_lag, delta_yport], axis=1)
+    df2.columns=['ylag', 'deltaY']
+    return df2
+
+def portfolio_halflife(lagged_portfolio):
+    regress_results=sm.ols(formula="deltaY ~ ylag", data=lagged_portfolio).fit()
+    return np.round(-np.log(2)/regress_results.params['ylag']).astype(int)
+
+def backtest(s1, yport, halflife, johansen_vect):
+    numUnits = -(yport - yport.rolling(halflife).mean())/yport.rolling(halflife).std()
+    positions=pd.DataFrame(np.dot(numUnits.values, np.expand_dims(johansen_vect.evec[:, 0], axis=1).T)*s1.values) 
+
+    pnl=np.sum((positions.shift().values)*(s1.pct_change().values), axis=1) 
+    ret=pnl/np.sum(np.abs(positions.shift()), axis=1)
+    return ret
+
+def portfolio_sharpe(ret):
+    return np.sqrt(252*24)*np.mean(ret)/np.std(ret)
+
+def portfolio_apr(ret):
+    return np.prod(1+ret)**(252*24/len(ret))-1
 
 
 
