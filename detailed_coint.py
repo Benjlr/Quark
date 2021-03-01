@@ -13,12 +13,17 @@ factor = 1
 
 #XXfile = "testdata\\EWA.csv"
 #YYfile = "testdata\\EWC.csv"
-XXfile = "C:\\Temp\\Data\\ETFS\\Arca\\AAAU.csv"
-YYfile = "C:\\Temp\\Data\\ETFS\\Arca\\AFIF.csv"
+
+XXfile = "C:\\Users\\Ben Roberts\\Dropbox\\Data\\ETFS\\Arca\\BBAX.csv"
+YYfile = "C:\\Users\\Ben Roberts\\Dropbox\\Data\\ETFS\\Arca\\DRIP.csv"
+
+
 
 df_x = prepare_data_coint_test(XXfile)
 df_y = prepare_data_coint_test(YYfile)
 s1 = define_valid_series(df_x, df_y)
+s1 = s1.loc['2020-11-01':]
+
 print('series length ' + str(len(s1)))
 
 
@@ -47,7 +52,7 @@ R=np.zeros((2,2))
 P=R.copy()
 beta=np.full((2, x.shape[0]), np.nan)
 Vw=delta/(1-delta)*np.eye(2)
-Ve=0.001
+Ve=0.1
 
 # Initialize beta(:, 1) to zero
 beta[:, 0]=0

@@ -49,14 +49,14 @@ class Trader:
 
 
     def onBarUpdateEWA(self, bars, hasNewBar):  
-        print(f'EWA {bars[len(bars)-1].time}')
+        #print(f'EWA {bars[len(bars)-1].time}')
         if self.CheckTime(bars[len(bars)-1].time):
             self.ewaBar = bars[len(bars)-1]
             self.checkUpdate()
 
 
     def onBarUpdateEWC( self, bars, hasNewBar):
-        print(f'EWC {bars[len(bars)-1].time}')
+        #print(f'EWC {bars[len(bars)-1].time}')
         if self.CheckTime(bars[len(bars)-1].time):
             self.ewcBar = bars[len(bars)-1]
             self.checkUpdate()          
@@ -72,22 +72,18 @@ class Trader:
 
             #checkExits first
             if (self.myKal.e[curr_iter] > 0 and self.broker.long):
-                self.broker.ExitLong(self.ewaBar.close,self.ewcBar.close)     
-                print('Exited Long!')          
+                self.broker.ExitLong(self.ewaBar.close,self.ewcBar.close)      
 
             if (self.myKal.e[curr_iter] < 0 and self.broker.short):
-                self.broker.ExitShort(self.ewaBar.close,self.ewcBar.close)
-                print('Exited Short!')          
+                self.broker.ExitShort(self.ewaBar.close,self.ewcBar.close)         
 
             if (self.myKal.e[curr_iter] < -np.sqrt(self.myKal.Q[curr_iter]) 
             and (not self.broker.long)):
-                self.broker.LongEntry(self.myKal.beta[:,self.myKal.iter][0],self.ewaBar.close,self.ewcBar.close)
-                print('Entered Long!')          
+                self.broker.LongEntry(self.myKal.beta[:,self.myKal.iter][0],self.ewaBar.close,self.ewcBar.close)  
 
             if (self.myKal.e[curr_iter] > np.sqrt(self.myKal.Q[curr_iter]) 
             and (not self.broker.short)):
                 self.broker.ShortEntry(self.myKal.beta[:,self.myKal.iter][0], self.ewaBar.close,self.ewcBar.close)
-                print('Entered Short!')
 
             self.ewaBar = None
             self.ewcBar = None
