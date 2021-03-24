@@ -3,7 +3,7 @@ from helpers import MakeIntoDF, PrimeKalman, SaveIBDataToFile
 from Cointegration import define_valid_series
 from Trading.BuySell import BuySell
 import numpy as np
-from ib_insync.contract import CFD, Forex, Stock
+from ib_insync import *
 from ib_insync.ib import IB
 import kalman
 from ib_insync import *

@@ -1,6 +1,8 @@
 from numpy.core.fromnumeric import take
 import pandas as pd
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
+import statsmodels.tsa.stattools as ts
+import statsmodels.tsa.vector_ar.vecm as vm
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as sm
@@ -116,12 +118,72 @@ def backtest(s1, yport, halflife, johansen_vect):
     ret=pnl/np.sum(np.abs(positions.shift()), axis=1)
     return ret
 
-def portfolio_sharpe(ret):
-    return np.sqrt(252*24)*np.mean(ret)/np.std(ret)
+def portfolio_sharpe(ret, periods = 252):
+    return np.sqrt(periods)*np.mean(ret)/np.std(ret)
 
-def portfolio_apr(ret):
-    return np.prod(1+ret)**(252*24/len(ret))-1
+def portfolio_apr(ret, periods =252):
+    return np.prod(1+ret)**(periods/len(ret))-1
 
+
+def kalman_backtest(s1):
+    ### KALMAN
+    x=s1['close_x']
+    y=s1['close_y']
+
+    x=np.array(ts.add_constant(x))[:, [1,0]]
+    delta=0.0001
+    yhat=np.full(y.shape[0], np.nan)
+    e=yhat.copy()
+    Q=yhat.copy()
+
+    R=np.zeros((2,2))
+    P=R.copy()
+    beta=np.full((2, x.shape[0]), np.nan)
+    Vw=delta/(1-delta)*np.eye(2)
+    Ve=0.001
+    beta[:, 0]=0
+    for t in range(len(y)):
+        if t > 0:
+            beta[:, t]=beta[:, t-1]
+            R=P+Vw
+            
+        yhat[t]=np.dot(x[t, :], beta[:, t])
+    
+        Q[t]=(np.dot(np.dot(x[t, :], R), x[t, :].T)+Ve)
+        e[t]=y[t]-yhat[t] 
+        K=np.dot(R, x[t, :].T)/Q[t] 
+        beta[:, t]=beta[:, t]+np.dot(K, e[t]) 
+        P=R-np.dot(np.outer(K, x[t, :]), R)
+
+        longsEntry=e < -np.sqrt(Q)
+        longsExit =e > 0
+
+        shortsEntry=e > np.sqrt(Q)
+        shortsExit =e < 0
+
+        numUnitsLong=np.zeros(longsEntry.shape)
+        numUnitsLong[:]=np.nan
+
+        numUnitsShort=np.zeros(shortsEntry.shape)
+        numUnitsShort[:]=np.nan
+
+        numUnitsLong[0]=0
+        numUnitsLong[longsEntry]=1
+        numUnitsLong[longsExit]=0
+        numUnitsLong=pd.DataFrame(numUnitsLong)
+        numUnitsLong.fillna(method='ffill', inplace=True)
+
+        numUnitsShort[0]=0
+        numUnitsShort[shortsEntry]=-1
+        numUnitsShort[shortsExit]=0
+        numUnitsShort=pd.DataFrame(numUnitsShort)
+        numUnitsShort.fillna(method='ffill', inplace=True)
+
+        numUnits=numUnitsLong+numUnitsShort
+        positions=pd.DataFrame(np.tile(numUnits.values, [1, 2]) * ts.add_constant(-beta[0,:].T)[:, [1,0]] *s1.values) 
+        pnl=np.sum((positions.shift().values)*(s1.pct_change().values), axis=1)
+        ret=pnl/np.sum(np.abs(positions.shift()), axis=1)
+        return np.nan_to_num(ret)
 
 
 
