@@ -32,8 +32,6 @@ for i in etfs:
     SaveIBDataToFile(theStock, i)
 '''
 
-
-
 def wave_smooth(data,nlevels,wv='db4'):
     n = (len(data)//2**nlevels)*2**nlevels
     data = data[-n:]
@@ -45,8 +43,7 @@ def wave_smooth(data,nlevels,wv='db4'):
         kappa = (omega-mu)/sigma
         coeffs[i] = pywt.threshold(tmp,kappa,'garrote')
     
-    rs = pywt.waverec(coeffs,wv)
-    
+    rs = pywt.waverec(coeffs,wv)    
     return(rs)
 
 
