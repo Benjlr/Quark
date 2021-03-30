@@ -79,17 +79,23 @@ for i in range(0,len(sub_array)):
 lastIndex =-1    
 returns =np.zeros(len(signals))
 opens = np.array(XXfile['open'])
+returns[0]=1000
 
-for i in range(0,len(signals)):
+for i in range(1,len(signals)):
     if signals[i] != 0:
         if lastIndex == -1:
+            returns[i] = returns[i-1]
             lastIndex = i
         elif signals[i] > 0:
-            returns[i] = (opens[i+1] / opens[lastIndex+1]) -1
+            returns[i] = ((opens[i+1] / opens[lastIndex+1]) -1)*returns[i-1] + returns[i-1]
             lastIndex = i
         elif signals[i] < 0:
-            returns[i] =1- (opens[i+1] / opens[lastIndex+1])
+            returns[i] =(1- (opens[i+1] / opens[lastIndex+1]))*returns[i-1] + returns[i-1]
             lastIndex = i
+    else:
+        returns[i] = returns[i-1]
+
+print(returns[len(returns)-1])
 
 
 
