@@ -61,13 +61,43 @@ XXfile = prepare_data_coint_test("C:\\Temp\\EWC.csv")
 #print(c2)
 
 rs = wave_smooth(XXfile['close'],5)
-np.insert(rs,0,range(len(XXfile['close']) - len(rs)))
+rs = np.insert(rs,0, np.zeros(len(XXfile['close']) - len(rs)))
 sub_array=[j-i for i, j in zip(rs[:-1], rs[1:])] 
+sub_array= np.insert(sub_array, 0,0)
+
+zero_crossings = np.where(np.diff(np.signbit(sub_array)))[0]
+zero_crossings=np.delete(zero_crossings,0)
+signals =np.zeros(len(rs))
+
+for i in range(0,len(sub_array)):
+    if i-1 in zero_crossings:
+        if sub_array[i] > 0:
+            signals[i]=-1
+        else:
+            signals[i]=1
+
+lastIndex =-1    
+returns =np.zeros(len(signals))
+opens = np.array(XXfile['open'])
+
+for i in range(0,len(signals)):
+    if signals[i] != 0:
+        if lastIndex == -1:
+            lastIndex = i
+        elif signals[i] > 0:
+            returns[i] = (opens[i+1] / opens[lastIndex+1]) -1
+            lastIndex = i
+        elif signals[i] < 0:
+            returns[i] =1- (opens[i+1] / opens[lastIndex+1])
+            lastIndex = i
 
 
 
-
-np.savetxt("C:\Temp\waves.csv", sub_array, delimiter=",")
+np.savetxt("C:\Temp\waves.csv", rs, delimiter=",")
+np.savetxt("C:\Temp\diffs.csv", sub_array, delimiter=",")
+np.savetxt("C:\Temp\zeroes.csv", zero_crossings, delimiter=",")
+np.savetxt("C:\Temp\\signals.csv", signals, delimiter=",")
+np.savetxt("C:\Temp\\returns.csv", returns, delimiter=",")
 
 #spectrum = create_spectrum(rs)
 #spectrum = spectrum**2
