@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 import yfinance as yf  
 
 
-etfs = ['EEM', 'EFA', 'EWA', 'EWC', 'EWJ', 
+etfs = [
+    'EEM', 
+    'EFA', 'EWA', 'EWC', 'EWJ', 
         'EWZ', 'FAS', 'FAZ', 'FXI', 'GDX', 
         'GLD', 'IGE', 'IWM', 'IYR', 'QID', 
         'QQQ', 'SDS', 'SKF', 'SPY', 'SSO', 
@@ -86,7 +88,7 @@ ica = FastICA(n_components=3)
 S_ = ica.fit_transform(X)  # Reconstruct signals
 A_ = ica.mixing_  # Get estimated mixing matrix
 '''
-completeSeries = np.empty(755)
+completeSeries = np.empty(756)
 
 for etf in etfs:
     #XXfile = prepare_data_coint_test(f"C:\\MyArea\\Repos\\Documents\\Quark\\testdata\\ETFs\\{etf}.csv")
@@ -128,22 +130,36 @@ for etf in etfs:
     #plt.plot(opens)    
     #plt.plot(MakeStationary(opens))
     #print(f"{returns[len(returns)-1]} -- {etf}")
-    stionarySeries = MakeStationary(opens)
-    if all(abs(i) <= 1 for i in stionarySeries):
-        completeSeries = np.c_[completeSeries,stionarySeries ]
+    stionarySeries = opens
+    #if all(abs(i) <= 1 for i in stionarySeries):
+    completeSeries = np.c_[completeSeries,stionarySeries ]
 
 completeSeries = np.delete(completeSeries,0,1 )
-np.savetxt("C:\Temp\check.csv", completeSeries, delimiter=",")
-plt.plot(completeSeries)
-plt.show()
 
-ica = FastICA(whiten=False)
+
+ica = FastICA(whiten=True)
 S_ = ica.fit_transform(completeSeries)  # Reconstruct signals
 A_ = ica.mixing_  # Get estimated mixing matrix
-print(A_)
-print(len(A_))
-plt.plot(S_)
+print(S_.shape)
+
+
+XXfile = yf.download('EEM','2013-01-01','2016-01-01')
+realSeries = np.array(XXfile['Adj Close'])
+predictedSeries = np.dot(S_, A_.T)
+print(S_[0])
+print(len(S_[0]))
+print(len(S_))
+
+plt.plot(realSeries)
+plt.plot(np.dot(S_, A_.T)[:,1])
+
+#plt.plot(S_[:,0])
+
 plt.show()
+
+  # Generate observations
+
+
 
 '''
     np.savetxt("C:\Temp\waves.csv", rs, delimiter=",")
