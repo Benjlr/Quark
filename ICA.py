@@ -10,12 +10,15 @@ from scipy import signal
 from sklearn.decomposition import FastICA, PCA
 import pywt
 import matplotlib.pyplot as plt
+import yfinance as yf  
 
 
-
-etfs = [ 'EEM', 'EFA', 'EWA', 'EWC', 'EWJ', 'EWZ', 'FAS', 'FAZ', 'FXI',
-'GDX', 'GLD', 'IGE', 'IWM', 'IYR', 'QID', 'QQQ', 'SDS', 'SKF','SPY', 'SSO', 'TZA', 'UNG',
-'USO', 'VWO', 'VXX', 'XLE', 'XLF', 'XLI', 'XRT' ]
+etfs = ['EEM', 'EFA', 'EWA', 'EWC', 'EWJ', 
+        'EWZ', 'FAS', 'FAZ', 'FXI', 'GDX', 
+        'GLD', 'IGE', 'IWM', 'IYR', 'QID', 
+        'QQQ', 'SDS', 'SKF', 'SPY', 'SSO', 
+        'TZA', 'UNG', 'USO', 'VWO', 'XLE',
+        'XLF', 'XLI', 'XRT' ]
 
 #from the year of 2013–2015
 '''
@@ -52,56 +55,103 @@ def create_spectrum(rs):
     img = pywt.cwt(rs,scales,'morl')[0]
     return img
 
-XXfile = prepare_data_coint_test("C:\\Temp\\EWC.csv")
-#c1,c2 = XXfile[:352],XXfile[352:]
-#print(c1)
-#print(c2)
+def MakeStationary(series, log_stationary=False):
+    if log_stationary:
+        series=np.log10(series)
 
-rs = wave_smooth(XXfile['close'],5)
-rs = np.insert(rs,0, np.zeros(len(XXfile['close']) - len(rs)))
-sub_array=[j-i for i, j in zip(rs[:-1], rs[1:])] 
-sub_array= np.insert(sub_array, 0,0)
+    s1 = pandas.Series(series).pct_change().values[1:].reshape(-1,1)
+    s1 = s1-(sum(s1)/len(s1))
+    s1 = (s1/max(s1,key=abs))
+    return s1
 
-zero_crossings = np.where(np.diff(np.signbit(sub_array)))[0]
-zero_crossings=np.delete(zero_crossings,0)
-signals =np.zeros(len(rs))
+'''
+np.random.seed(0)
+n_samples = 2000
+time = np.linspace(0, 8, n_samples)
 
-for i in range(0,len(sub_array)):
-    if i-1 in zero_crossings:
-        if sub_array[i] > 0:
-            signals[i]=-1
+s1 = np.sin(2 * time)  # Signal 1 : sinusoidal signal
+s2 = np.sign(np.sin(3 * time))  # Signal 2 : square signal
+s3 = signal.sawtooth(2 * np.pi * time)  # Signal 3: saw tooth signal
+
+S = np.c_[s1, s2, s3]
+S += 0.2 * np.random.normal(size=S.shape)  # Add noise
+
+S /= S.std(axis=0)  # Standardize data
+# Mix data
+A = np.array([[1, 1, 1], [0.5, 2, 1.0], [1.5, 1.0, 2.0]])  # Mixing matrix
+X = np.dot(S, A.T)  # Generate observations
+print(X)
+# Compute ICA
+ica = FastICA(n_components=3)
+S_ = ica.fit_transform(X)  # Reconstruct signals
+A_ = ica.mixing_  # Get estimated mixing matrix
+'''
+completeSeries = np.empty(755)
+
+for etf in etfs:
+    #XXfile = prepare_data_coint_test(f"C:\\MyArea\\Repos\\Documents\\Quark\\testdata\\ETFs\\{etf}.csv")
+    XXfile = yf.download(etf,'2013-01-01','2016-01-01')
+    
+    rs = wave_smooth(XXfile['Adj Close'],5)
+    rs = np.insert(rs,0, np.zeros(len(XXfile['Adj Close']) - len(rs)))
+    sub_array=[j-i for i, j in zip(rs[:-1], rs[1:])] 
+    sub_array= np.insert(sub_array, 0,0)
+    zero_crossings = np.where(np.diff(np.signbit(sub_array)))[0]
+    zero_crossings=np.delete(zero_crossings,0)
+    signals =np.zeros(len(rs))
+
+    for i in range(0,len(sub_array)):
+        if i-1 in zero_crossings:
+            if sub_array[i] > 0:
+                signals[i]=-1
+            else:
+                signals[i]=1
+
+    lastIndex =-1    
+    returns =np.zeros(len(signals)-1)
+    opens = np.array(XXfile['Adj Close'])
+    returns[0]=1000
+
+    for i in range(1,len(signals)-1):
+        if signals[i] != 0:
+            if lastIndex == -1:
+                returns[i] = returns[i-1]
+                lastIndex = i
+            elif signals[i] > 0:
+                returns[i] = ((opens[i+1] / opens[lastIndex+1]) -1)*returns[i-1] + returns[i-1]
+                lastIndex = i
+            elif signals[i] < 0:
+                returns[i] =(1- (opens[i+1] / opens[lastIndex+1]))*returns[i-1] + returns[i-1]
+                lastIndex = i
         else:
-            signals[i]=1
-
-lastIndex =-1    
-returns =np.zeros(len(signals))
-opens = np.array(XXfile['open'])
-returns[0]=1000
-
-for i in range(1,len(signals)):
-    if signals[i] != 0:
-        if lastIndex == -1:
             returns[i] = returns[i-1]
-            lastIndex = i
-        elif signals[i] > 0:
-            returns[i] = ((opens[i+1] / opens[lastIndex+1]) -1)*returns[i-1] + returns[i-1]
-            lastIndex = i
-        elif signals[i] < 0:
-            returns[i] =(1- (opens[i+1] / opens[lastIndex+1]))*returns[i-1] + returns[i-1]
-            lastIndex = i
-    else:
-        returns[i] = returns[i-1]
+    #plt.plot(opens)    
+    #plt.plot(MakeStationary(opens))
+    #print(f"{returns[len(returns)-1]} -- {etf}")
+    stionarySeries = MakeStationary(opens)
+    if all(abs(i) <= 1 for i in stionarySeries):
+        completeSeries = np.c_[completeSeries,stionarySeries ]
 
-print(returns[len(returns)-1])
+completeSeries = np.delete(completeSeries,0,1 )
+np.savetxt("C:\Temp\check.csv", completeSeries, delimiter=",")
+plt.plot(completeSeries)
+plt.show()
 
+ica = FastICA(whiten=False)
+S_ = ica.fit_transform(completeSeries)  # Reconstruct signals
+A_ = ica.mixing_  # Get estimated mixing matrix
+print(A_)
+print(len(A_))
+plt.plot(S_)
+plt.show()
 
-
-np.savetxt("C:\Temp\waves.csv", rs, delimiter=",")
-np.savetxt("C:\Temp\diffs.csv", sub_array, delimiter=",")
-np.savetxt("C:\Temp\zeroes.csv", zero_crossings, delimiter=",")
-np.savetxt("C:\Temp\\signals.csv", signals, delimiter=",")
-np.savetxt("C:\Temp\\returns.csv", returns, delimiter=",")
-
+'''
+    np.savetxt("C:\Temp\waves.csv", rs, delimiter=",")
+    np.savetxt("C:\Temp\diffs.csv", sub_array, delimiter=",")
+    np.savetxt("C:\Temp\zeroes.csv", zero_crossings, delimiter=",")
+    np.savetxt("C:\Temp\\signals.csv", signals, delimiter=",")
+    np.savetxt("C:\Temp\\returns.csv", returns, delimiter=",")
+'''
 #spectrum = create_spectrum(rs)
 #spectrum = spectrum**2
 #plt.imshow(spectrum,cmap='Spectral')
