@@ -66,28 +66,21 @@ def MakeStationary(series, log_stationary=False):
     s1 = (s1/max(s1,key=abs))
     return s1
 
-'''
-np.random.seed(0)
-n_samples = 2000
-time = np.linspace(0, 8, n_samples)
+def GetRHD(observed, source):
+    myRHD =0
+    for i in range(0, len(observed)-1):
+        myRHD += (RHD(observed[i+1], observed[i]) - RHD(source[i+1], source[i]))**2
+    return (1/(len(observed)-1))*myRHD
+    
 
-s1 = np.sin(2 * time)  # Signal 1 : sinusoidal signal
-s2 = np.sign(np.sin(3 * time))  # Signal 2 : square signal
-s3 = signal.sawtooth(2 * np.pi * time)  # Signal 3: saw tooth signal
+def RHD(tOne, t):
+    if tOne - t > 0:
+        return 1
+    elif tOne - t < 0:
+        return -1
+    else :
+        return 0
 
-S = np.c_[s1, s2, s3]
-S += 0.2 * np.random.normal(size=S.shape)  # Add noise
-
-S /= S.std(axis=0)  # Standardize data
-# Mix data
-A = np.array([[1, 1, 1], [0.5, 2, 1.0], [1.5, 1.0, 2.0]])  # Mixing matrix
-X = np.dot(S, A.T)  # Generate observations
-print(X)
-# Compute ICA
-ica = FastICA(n_components=3)
-S_ = ica.fit_transform(X)  # Reconstruct signals
-A_ = ica.mixing_  # Get estimated mixing matrix
-'''
 completeSeries = np.empty(756)
 
 for etf in etfs:
@@ -127,67 +120,49 @@ for etf in etfs:
                 lastIndex = i
         else:
             returns[i] = returns[i-1]
-    #plt.plot(opens)    
-    #plt.plot(MakeStationary(opens))
-    #print(f"{returns[len(returns)-1]} -- {etf}")
+
+    #stionarySeries = MakeStationary(opens)
     stionarySeries = opens
-    #if all(abs(i) <= 1 for i in stionarySeries):
     completeSeries = np.c_[completeSeries,stionarySeries ]
 
 completeSeries = np.delete(completeSeries,0,1 )
-
-
 ica = FastICA(whiten=True)
 S_ = ica.fit_transform(completeSeries)  # Reconstruct signals
 A_ = ica.mixing_  # Get estimated mixing matrix
-print(S_.shape)
 
+etfCounter =0
+for etf in etfs:
+    XXfile = yf.download(etf,'2013-01-01','2016-01-01')
+    realSeries = np.array(XXfile['Adj Close'])
+    #realSeries = MakeStationary(realSeries)
+    new_S_ = S_
+    new_A_ = A_
 
-XXfile = yf.download('EEM','2013-01-01','2016-01-01')
-realSeries = np.array(XXfile['Adj Close'])
-predictedSeries = np.dot(S_, A_.T)
-print(S_[0])
-print(len(S_[0]))
-print(len(S_))
+    counter = 0
+    while counter < 1:
+        maxVal =0
+        myRHD =0
+        toremove=-1
 
-plt.plot(realSeries)
-plt.plot(np.dot(S_, A_.T)[:,1])
+        for i in range(0, len(new_S_[etfCounter])):
+            source = np.dot(new_S_[:,i:i+1], new_A_.T[i:i+1,:])[:,etfCounter]
+            myRHD = GetRHD(realSeries,source)
+            if myRHD > maxVal:
+                maxVal = myRHD
+                toremove=i
+        print(f"removing {toremove} with Q: {maxVal}")
+        new_S_=np.delete(new_S_,toremove, axis=1)
+        new_A_=np.delete(new_A_,toremove, axis=1)
+        counter+=1
 
-#plt.plot(S_[:,0])
+    plt.plot(np.dot(new_S_, new_A_.T)[:,etfCounter] + ica.mean_[etfCounter])
+    #plt.plot(np.dot(S_, A_.T)[:,etfCounter] )
+    plt.plot(realSeries, color='Red')
+    plt.show()
+    etfCounter+=1
+    #for i in range(etfCounter, len(S_[etfCounter])):
+    #   source = np.dot(S_[:,i:i+1], A_.T[i:i+1,:])[:,etfCounter]
+    #   plt.plot(source)
 
-plt.show()
-
-  # Generate observations
-
-
-
-'''
-    np.savetxt("C:\Temp\waves.csv", rs, delimiter=",")
-    np.savetxt("C:\Temp\diffs.csv", sub_array, delimiter=",")
-    np.savetxt("C:\Temp\zeroes.csv", zero_crossings, delimiter=",")
-    np.savetxt("C:\Temp\\signals.csv", signals, delimiter=",")
-    np.savetxt("C:\Temp\\returns.csv", returns, delimiter=",")
-'''
-#spectrum = create_spectrum(rs)
-#spectrum = spectrum**2
-#plt.imshow(spectrum,cmap='Spectral')
-#plt.show()
-
-'''
-s1 = pandas.Series(vxx['close'])
-s1 = s1.pct_change().values[1:]
-s1 = s1.reshape(-1,1)
-print(s1)
-
-ica = FastICA(n_components = 10)
-S_ = ica.fit_transform(s1)  # Reconstruct signals
-A_ = ica.mixing_  # Get estimated mixing matrix
-
-print(S_)
-print(A_)
-print(s1)
-# We can `prove` that the ICA model applies by reverting the unmixing.
-assert np.allclose(X, np.dot(S_, A_.T) + ica.mean_)
-'''
 
 
