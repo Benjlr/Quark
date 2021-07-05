@@ -46,3 +46,43 @@ def RHD(tOne, t):
         return -1
     else :
         return 0
+
+def GetSignals(data):
+    rs = wave_smooth(data['Adj Close'],5)
+    rs = np.insert(rs,0, np.zeros(len(data['Adj Close']) - len(rs)))
+    sub_array=[j-i for i, j in zip(rs[:-1], rs[1:])] 
+    sub_array= np.insert(sub_array, 0,0)
+    zero_crossings = np.where(np.diff(np.signbit(sub_array)))[0]
+    zero_crossings=np.delete(zero_crossings,0)
+    signalsBuy =np.zeros(len(rs))
+    SignalsSell =np.zeros(len(rs))
+    SignalsHold =np.zeros(len(rs))
+
+    for i in range(0,len(sub_array)):
+        if i-1 in zero_crossings:
+            if sub_array[i] > 0:
+                SignalsSell[i]=-1
+            else:
+                signalsBuy[i]=1
+        else:
+            SignalsHold[i] =1
+    return signalsBuy,SignalsSell,SignalsHold
+    lastIndex =-1    
+    returns =np.zeros(len(signals)-1)
+    opens = np.array(data['Adj Close'])
+    returns[0]=1000
+
+    for i in range(1,len(signals)-1):
+        if signals[i] != 0:
+            if lastIndex == -1:
+                returns[i] = returns[i-1]
+                lastIndex = i
+            elif signals[i] > 0:
+                returns[i] = ((opens[i+1] / opens[lastIndex+1]) -1)*returns[i-1] + returns[i-1]
+                lastIndex = i
+            elif signals[i] < 0:
+                returns[i] =(1- (opens[i+1] / opens[lastIndex+1]))*returns[i-1] + returns[i-1]
+                lastIndex = i
+        else:
+            returns[i] = returns[i-1]
+
